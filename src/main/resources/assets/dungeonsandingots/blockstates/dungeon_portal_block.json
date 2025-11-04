@@ -1,0 +1,5 @@
+{
+    "variants": {
+        "": { "model": "dungeonsandingots:block/dungeon_portal_block" }
+    }
+}
