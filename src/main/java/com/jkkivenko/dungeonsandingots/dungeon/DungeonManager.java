@@ -2,15 +2,15 @@ package com.jkkivenko.dungeonsandingots.dungeon;
 
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Optional;
+import java.util.List;
 
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngotsSavedData;
-import com.jkkivenko.dungeonsandingots.dungeon.tree.DungeonTree;
+import com.jkkivenko.dungeonsandingots.dungeon.generator.DungeonGenerator;
+import com.jkkivenko.dungeonsandingots.dungeon.generator.DungeonRoomData;
 
 import net.minecraft.commands.arguments.blocks.BlockInput;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -20,28 +20,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece;
-import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.StructurePiece;
-import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
-import net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement;
 import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
-import net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasLookup;
-import net.minecraft.world.level.levelgen.structure.structures.JigsawStructure;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 
 @SuppressWarnings("null")
 public class DungeonManager {
 
-    private static final int DUNGEON_1_MAX_DEPTH = 15;
+    private static final int DUNGEON_1_MIN_ROOMS = 1;
+    private static final int DUNGEON_1_MAX_ROOMS = 4;
 
     public static void generateAndSendPlayerToDungeon(Player player, String dungeonName) {
         ResourceLocation resourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, dungeonName);
@@ -59,7 +48,6 @@ public class DungeonManager {
             RandomSource randomSource = targetLevel.getRandom();
             int chunkX = randomSource.nextIntBetweenInclusive(-64, 64) * 16;
             int chunkZ = randomSource.nextIntBetweenInclusive(-64, 64) * 16;
-            BlockPos generationPos = new BlockPos(chunkX, 64, chunkZ);
             // Sends the player to the dungeon. We do this early to display the "Generating Terrain..." screen while the dungeon generates.
             sendPlayerToDungeon(player, chunkX, 66, chunkZ, targetLevel);
             // Clears out the old dungeon. Realistically, this should scan somehow for the outside of the structure.
@@ -69,31 +57,40 @@ public class DungeonManager {
             dnisd = dungeonDataStorage.computeIfAbsent(DungeonsAndIngotsSavedData.ID);
             int oldChunkX = dnisd.getOldChunkX(); 
             int oldChunkZ = dnisd.getOldChunkZ();
+            // TODO: REENABLE ME!
             deleteDungeon(targetLevel, new BlockPos(oldChunkX, 72, oldChunkZ), 200, 17);
             // After that's done, we update the data storage to represent the new values for next time.
             dnisd.setOldChunkX(chunkX);
             dnisd.setOldChunkZ(chunkZ);
-            // Time to generate the jigsaw.
-            // First, gets a reference to the target jigsaw. This is the "target pool" field in a jigsaw block
-            ResourceLocation poolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/start");
-            ResourceKey<StructureTemplatePool> poolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, poolResourceLocation);
+            // TOOD: Fix the stuff with the saved data stuff idk, It's a prokbem
+            // Time to generate the dungeon. First we get references to the TemplatePool objects.
             Registry<StructureTemplatePool> templateRegistry = targetLevel.registryAccess().lookupOrThrow(Registries.TEMPLATE_POOL);
-            Holder<StructureTemplatePool> poolHolder = templateRegistry.getOrThrow(poolResourceKey);
-            StructureTemplatePool pool = poolHolder.value();
-            // this is the "target name" field in a jigsaw block
-            ResourceLocation targetResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "jig");
-            // Actually generates the jigsaw;
-            // TODO: REMOVE ME!
-            JigsawPlacement.generateJigsaw(targetLevel, poolHolder, targetResourceLocation, DUNGEON_1_MAX_DEPTH, generationPos, false);
-            generateDungeon(targetLevel, pool, targetResourceLocation, DUNGEON_1_MAX_DEPTH, chunkX, chunkZ);
+            // This pool is for possible starting rooms
+            ResourceLocation startPoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/start");
+            ResourceKey<StructureTemplatePool> startPoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, startPoolResourceLocation);
+            StructureTemplatePool startPool = templateRegistry.getOrThrow(startPoolResourceKey).value();
+            // This pool is for regular rooms
+            ResourceLocation regularPoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/all");
+            ResourceKey<StructureTemplatePool> regularPoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, regularPoolResourceLocation);
+            StructureTemplatePool regularPool = templateRegistry.getOrThrow(regularPoolResourceKey).value();
+            // This pool is for rooms that must only appear once, like ending rooms
+            ResourceLocation exactlyOnePoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/end");
+            ResourceKey<StructureTemplatePool> exactlyOnePoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, exactlyOnePoolResourceLocation);
+            StructureTemplatePool exactlyOnePool = templateRegistry.getOrThrow(exactlyOnePoolResourceKey).value();
+
+            // Actually generates the jigsaw
+            // JigsawPlacement.generateJigsaw(targetLevel, poolHolder, targetName, DUNGEON_1_MAX_DEPTH, generationPos, false);
+            // SinglePoolElement
+            generateDungeon(targetLevel, startPool, regularPool, exactlyOnePool, DUNGEON_1_MIN_ROOMS, DUNGEON_1_MAX_ROOMS);
             // Once this finishes, the CPU is freed up, the teleport finishes, and the "Generating Terrain..." screen disappears.
         }
     }
 
-    private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool pool, ResourceLocation targetResourceLocation, int maxDepth, int x, int z) {
-        // So, we need to create the DungeonTree.
-        DungeonTree tree = new DungeonTree(pool);
-        tree.generate(maxDepth);
+    private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
+        DungeonGenerator rooms = new DungeonGenerator(targetLevel, startPool, regularPool, exactlyOnePool, minRooms, maxRooms);
+        List<DungeonRoomData> a = rooms.generate();
+        DungeonsAndIngots.LOGGER.debug("~~~~~~~~~~~~~~~~~~\nFINAL DUNGEON:");
+        DungeonsAndIngots.LOGGER.debug(a.toString());
     }
 
     private static void deleteDungeon(ServerLevel level, BlockPos center, int xzDistance, int yDistance) {
