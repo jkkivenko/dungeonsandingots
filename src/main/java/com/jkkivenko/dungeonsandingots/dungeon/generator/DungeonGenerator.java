@@ -1,6 +1,7 @@
 package com.jkkivenko.dungeonsandingots.dungeon.generator;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
@@ -9,13 +10,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.FrontAndTop;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.JigsawBlock;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement;
 import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.JigsawBlockInfo;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
@@ -30,11 +35,17 @@ public class DungeonGenerator {
     private StructureTemplatePool regularTemplatePool;
     private StructureTemplatePool exactlyOneTemplatePool;
     private Registry<StructureTemplatePool> templateRegistry;
+    private ServerLevel level;
     private RandomSource randomSource;
     private int minRooms;
     private int maxRooms;
 
     private StructureTemplateManager templateManager;
+    private List<DungeonRoomData> rooms;
+
+    public List<DungeonRoomData> getRooms() {
+        return rooms;
+    }
 
     public DungeonGenerator(ServerLevel level, StructureTemplatePool startTemplatePool, StructureTemplatePool regularTemplatePool, StructureTemplatePool exactlyOneTemplatePool, int minRooms, int maxRooms) {
         this.startTemplatePool = startTemplatePool;
@@ -42,6 +53,7 @@ public class DungeonGenerator {
         this.exactlyOneTemplatePool = exactlyOneTemplatePool;
         this.minRooms = minRooms;
         this.maxRooms = maxRooms;
+        this.level = level;
         this.randomSource = level.getRandom();
         this.templateManager = level.getStructureManager();
         this.templateRegistry = level.registryAccess().lookupOrThrow(Registries.TEMPLATE_POOL);
@@ -49,24 +61,44 @@ public class DungeonGenerator {
     }
 
     // Builds a hypothetical dungeon !
-    public ArrayList<DungeonRoomData> generate() {
+    public void generate() {
         // Create a list of dungeon rooms
         ArrayList<DungeonRoomData> generatedRooms = new ArrayList<>();
         // The start room. 
         DungeonRoomData startRoom = new DungeonRoomData(startTemplatePool.getRandomTemplate(randomSource), BlockPos.ZERO, Rotation.NONE);
         generatedRooms.add(startRoom);
-        generateRecursive(startRoom, generatedRooms, null);
+        generateRecursive(startRoom, generatedRooms, null, 0);
         // generateRecursive will edit generatedRooms until we end up with a valid dungeon floorplan to return.
-        return generatedRooms;
+        this.rooms = generatedRooms;
     }
 
-    private boolean generateRecursive(DungeonRoomData mostRecentRoom, ArrayList<DungeonRoomData> existingRooms, JigsawBlockInfo alreadyUsedJigsaw) {
+    public void place() {
+        for (DungeonRoomData roomData : this.rooms) {
+            // Okay... brace yourself
+            // Serious jank incoming
+            // Just revoke my degree at this point...
+            // I'm using toString to access a protected field because I'm a monster and I hate good code
+            // I'm sorry you had to see this, dear reader.
+            // Please forgive me...
+            // I have brought great shame upon my family
+            // DungeonsAndIngots.LOGGER.debug("Placing room " + roomData.toString());
+            String structureName = roomData.element().toString().replace("Single[Left[" + DungeonsAndIngots.MOD_ID + ":", "").replace("]]", "");
+            ResourceLocation resourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, structureName);
+            StructureTemplate structureTemplate = templateManager.get(resourceLocation).get();
+            StructurePlaceSettings settings = new StructurePlaceSettings().setRotation(roomData.rotation());
+            structureTemplate.placeInWorld(level, roomData.position(), roomData.position(), settings, randomSource, 0);
+            // DungeonsAndIngots.LOGGER.debug("\tSTRUCTURE IS PLACED");
+        }
+    }
+
+    private boolean generateRecursive(DungeonRoomData mostRecentRoom, ArrayList<DungeonRoomData> existingRooms, JigsawBlockInfo alreadyUsedJigsaw, int roomIndex) {
+        // TODO: There's something fishy about this but I'm not sure what... It really doesn't like generating split rooms for some reason but it works... enough...
         // Only YOU can stop infinite recursion!
-        DungeonsAndIngots.LOGGER.debug("NUMBER OF GENERATED ROOMS IS:");
-        DungeonsAndIngots.LOGGER.debug(Integer.toString(existingRooms.size()));
+        // DungeonsAndIngots.LOGGER.debug("NUMBER OF GENERATED ROOMS IS:");
+        // DungeonsAndIngots.LOGGER.debug(Integer.toString(existingRooms.size()));
         if (existingRooms.size() > maxRooms) {
-            DungeonsAndIngots.LOGGER.debug("quitting because too many rooms :|");
-            return true;
+            // DungeonsAndIngots.LOGGER.debug("quitting because too many rooms :|");
+            return false;
         }
         List<JigsawBlockInfo> jigsawsInThisRoom = mostRecentRoom.element().getShuffledJigsawBlocks(templateManager, BlockPos.ZERO, Rotation.NONE, randomSource);
         // DungeonsAndIngots.LOGGER.debug("ROOM IS:");
@@ -78,8 +110,8 @@ public class DungeonGenerator {
             // If the jigsaw block has already been used or it's a mob-spawning jigsaw, just ignore it.
             // DungeonsAndIngots.LOGGER.debug(Integer.toString(alreadyUsedJigsaws.size()));
             if (jigsawEquals(alreadyUsedJigsaw, jigsawInThisRoom)) {
-                DungeonsAndIngots.LOGGER.debug("nathan nathan nathan. The following jigsaw block was skipped:");
-                DungeonsAndIngots.LOGGER.debug(jigsawInThisRoom.info().pos().toString());
+                // DungeonsAndIngots.LOGGER.debug("nathan nathan nathan. The following jigsaw block was skipped:");
+                // DungeonsAndIngots.LOGGER.debug(jigsawInThisRoom.info().pos().toString());
                 continue;
             }
             if (jigsawInThisRoomTargetPool != regularTemplatePool) {
@@ -96,13 +128,22 @@ public class DungeonGenerator {
             // DungeonsAndIngots.LOGGER.debug(jigsawInThisRoomPosition.toString());
             // DungeonsAndIngots.LOGGER.debug("\tAND ROTATION:");
             // DungeonsAndIngots.LOGGER.debug(jigsawInThisRoomRotation.toString());
-            // Then we iterate over that list of possible rooms
+
+            // Then we iterate over the list of possible rooms
             boolean foundRoomToPlace = false;
+            // Because of a quirk of StructureTemplatePool.getShuffledTemplates, it will often try the same room type multiple times. As an optimization,
+            // We keep track of which room types we've already tried so we can skip them later, greatly reducing generation time (hopefully!)
+            HashSet<StructurePoolElement> alreadyCheckedRoomTypes = new HashSet<>();
             for (StructurePoolElement possibleRoom : possibleRooms) {
-                DungeonsAndIngots.LOGGER.debug("I AM:");
-                DungeonsAndIngots.LOGGER.debug(mostRecentRoom.toString());
-                DungeonsAndIngots.LOGGER.debug("TRYING TO PLACE THIS ROOM:");
-                DungeonsAndIngots.LOGGER.debug(possibleRoom.toString());
+                if (!alreadyCheckedRoomTypes.add(possibleRoom)) {
+                    continue;
+                }
+                // DungeonsAndIngots.LOGGER.debug("ROOM NUMBER " + Integer.toString(roomIndex) + ", CHILD " + possibleRoom.toString());
+                // DungeonsAndIngots.LOGGER.debug("        " + alreadyCheckedRoomTypes.toString());
+                // DungeonsAndIngots.LOGGER.debug("I AM:");
+                // DungeonsAndIngots.LOGGER.debug(mostRecentRoom.toString());
+                // DungeonsAndIngots.LOGGER.debug("TRYING TO PLACE THIS ROOM:");
+                // DungeonsAndIngots.LOGGER.debug(possibleRoom.toString());
                 List<JigsawBlockInfo> allJigsawsInTargetRoom = possibleRoom.getShuffledJigsawBlocks(templateManager, BlockPos.ZERO, Rotation.NONE, randomSource);
                 // Finally, iterate over all the jigsaws in the selected room to find one with a matching name, and use its rotation and offset to calculate room location and rotation
                 for (JigsawBlockInfo jigsawInTargetRoom : allJigsawsInTargetRoom) {
@@ -120,28 +161,39 @@ public class DungeonGenerator {
                         Rotation newRoomRotation = calculateRequiredRotation(jigsawInThisRoomRotation, jigsawInTargetRoomRotation);
                         BlockPos oneBlockForwardOffset = new BlockPos(0, 0, -1).rotate(jigsawInThisRoomRotation);
                         BlockPos newRoomPosition = jigsawInTargetRoomPosition.rotate(newRoomRotation).multiply(-1).offset(jigsawInThisRoomPosition).offset(oneBlockForwardOffset);
-                        DungeonsAndIngots.LOGGER.debug("NEW ROOM WILL BE PLACED AT:");
-                        DungeonsAndIngots.LOGGER.debug(newRoomPosition.toString());
-                        DungeonsAndIngots.LOGGER.debug("WITH ROTATION:");
-                        DungeonsAndIngots.LOGGER.debug(newRoomRotation.toString());
+                        // DungeonsAndIngots.LOGGER.debug("NEW ROOM WILL BE PLACED AT:");
+                        // DungeonsAndIngots.LOGGER.debug(newRoomPosition.toString());
+                        // DungeonsAndIngots.LOGGER.debug("WITH ROTATION:");
+                        // DungeonsAndIngots.LOGGER.debug(newRoomRotation.toString());
+                        // Detect if this room overlaps with any other rooms. This prevents self-intersection, dead-ends, etc.
                         DungeonRoomData newRoom = new DungeonRoomData(possibleRoom, newRoomPosition, newRoomRotation);
-                        // TODO: Check if the room is overlapping any other rooms, and break (without setting foundRoomToPlace) if so.
+                        boolean foundOverlap = false;
+                        for (DungeonRoomData existingRoom : existingRooms) {
+                            if (this.detectRoomOverlap(existingRoom, newRoom)) {
+                                foundOverlap = true;
+                                break;
+                            }
+                        }
+                        if (foundOverlap) {
+                            break;
+                        }
                         // Create new temporary arrays during the generation step in case we have to backtrack from this room
                         ArrayList<DungeonRoomData> hypotheticalFutureDungeonRooms = new ArrayList<>(existingRooms);
                         hypotheticalFutureDungeonRooms.add(newRoom);
                         // Now we do the recursive step! If it returns true, we concrete-ify the temporary lists and stop trying to find matching jigsaws
                         // We actually want break out of the next for loop too, since we've definitely decided on which room we're placing
-                        if (generateRecursive(newRoom, hypotheticalFutureDungeonRooms, jigsawInTargetRoom)) {
-                            DungeonsAndIngots.LOGGER.debug("REACHED THE END OF A BRANCH, NOTE THAT IN YOUR LOG");
+                        if (generateRecursive(newRoom, hypotheticalFutureDungeonRooms, jigsawInTargetRoom, roomIndex + 1)) {
+                            // Ensures that we don't start accepting branches until we hit a minimum number of rooms, which guarantees dungeon size and length.
+                            if (hypotheticalFutureDungeonRooms.size() < minRooms) {
+                                continue;
+                            }
+                            // DungeonsAndIngots.LOGGER.debug("REACHED THE END OF A BRANCH, NOTE THAT IN YOUR LOG");
                             existingRooms.clear();
                             existingRooms.addAll(hypotheticalFutureDungeonRooms);
                             foundRoomToPlace = true;
                             break;
                         }
                     }
-                }
-                if (foundRoomToPlace) {
-                    break;
                 }
             }
             // This means "I tried every possible room, and none of them found a valid placement, so clearly this path is a dead end and a problem!"
@@ -218,5 +270,12 @@ public class DungeonGenerator {
         } else {
             return Rotation.COUNTERCLOCKWISE_90;
         }
+    }
+
+    // Can't be static because of templateManager, so jot that down.
+    private boolean detectRoomOverlap(DungeonRoomData room1, DungeonRoomData room2) {
+        BoundingBox room1BoundingBox = room1.element().getBoundingBox(templateManager, room1.position(), room1.rotation());
+        BoundingBox room2BoundingBox = room2.element().getBoundingBox(templateManager, room2.position(), room2.rotation());
+        return room1BoundingBox.intersects(room2BoundingBox);
     }
 }

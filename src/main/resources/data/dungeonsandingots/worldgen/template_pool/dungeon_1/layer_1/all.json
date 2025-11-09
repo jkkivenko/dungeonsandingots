@@ -3,7 +3,7 @@
     "fallback": "minecraft:empty",
     "elements": [
         {
-            "weight": 1,
+            "weight": 4,
             "element": {
                 "element_type": "minecraft:single_pool_element",
                 "location": "dungeonsandingots:dungeon_1/layer_1/straight_trees_1",
@@ -14,10 +14,32 @@
             }
         },
         {
-            "weight": 1,
+            "weight": 3,
             "element": {
                 "element_type": "minecraft:single_pool_element",
                 "location": "dungeonsandingots:dungeon_1/layer_1/corner_trees_1",
+                "processors": {
+                    "processors": []
+                },
+                "projection": "rigid"
+            }
+        },
+        {
+            "weight": 3,
+            "element": {
+                "element_type": "minecraft:single_pool_element",
+                "location": "dungeonsandingots:dungeon_1/layer_1/split_trees_1",
+                "processors": {
+                    "processors": []
+                },
+                "projection": "rigid"
+            }
+        },
+        {
+            "weight": 1,
+            "element": {
+                "element_type": "minecraft:single_pool_element",
+                "location": "dungeonsandingots:dungeon_1/layer_1/start",
                 "processors": {
                     "processors": []
                 },

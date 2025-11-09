@@ -7,7 +7,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
 @SuppressWarnings("null")
-public class DungeonsAndIngotsSavedData extends SavedData {
+public class DeprecatedDungeonsAndIngotsSavedData extends SavedData {
 
     private int oldChunkX;
     private int oldChunkZ;
@@ -30,26 +30,26 @@ public class DungeonsAndIngotsSavedData extends SavedData {
         return oldChunkZ;
     }
 
-    public DungeonsAndIngotsSavedData() {
+    public DeprecatedDungeonsAndIngotsSavedData() {
         // Intentionally empty. Probably.
     }
 
-    public DungeonsAndIngotsSavedData(int oldChunkX, int oldChunkZ) {
+    public DeprecatedDungeonsAndIngotsSavedData(int oldChunkX, int oldChunkZ) {
         this.oldChunkX = oldChunkX;
         this.oldChunkZ = oldChunkZ;
     }
 
-    public static final SavedDataType<DungeonsAndIngotsSavedData> ID = new SavedDataType<>(
+    public static final SavedDataType<DeprecatedDungeonsAndIngotsSavedData> ID = new SavedDataType<>(
         // The identifier of the saved data
         // Used as the path within the level's `data` folder
         "important_words_wiuth_more_words",
         // The initial constructor
-        DungeonsAndIngotsSavedData::new,
+        DeprecatedDungeonsAndIngotsSavedData::new,
         // The codec used to serialize the data
         RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("oldChunkX").forGetter(DungeonsAndIngotsSavedData::getOldChunkX),
-            Codec.INT.fieldOf("oldChunkZ").forGetter(DungeonsAndIngotsSavedData::getOldChunkZ)
-        ).apply(instance, DungeonsAndIngotsSavedData::new))
+            Codec.INT.fieldOf("oldChunkX").forGetter(DeprecatedDungeonsAndIngotsSavedData::getOldChunkX),
+            Codec.INT.fieldOf("oldChunkZ").forGetter(DeprecatedDungeonsAndIngotsSavedData::getOldChunkZ)
+        ).apply(instance, DeprecatedDungeonsAndIngotsSavedData::new))
     );
 
 }
