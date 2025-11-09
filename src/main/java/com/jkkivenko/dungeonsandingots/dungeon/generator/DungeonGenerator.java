@@ -73,8 +73,12 @@ public class DungeonGenerator {
     }
 
     public void place() {
+        DungeonsAndIngots.LOGGER.debug("FINAL DUNGEON OF LENGTH " + Integer.toString(rooms.size()) + ":");
+        int i = 0;
         for (DungeonRoomData roomData : this.rooms) {
             // Okay... brace yourself
+            DungeonsAndIngots.LOGGER.debug("ROOM " + Integer.toString(i) + ": " + roomData.toString());
+            i++;
             // Serious jank incoming
             // Just revoke my degree at this point...
             // I'm using toString to access a protected field because I'm a monster and I hate good code
@@ -92,7 +96,10 @@ public class DungeonGenerator {
     }
 
     private boolean generateRecursive(DungeonRoomData mostRecentRoom, ArrayList<DungeonRoomData> existingRooms, JigsawBlockInfo alreadyUsedJigsaw, int roomIndex) {
-        // TODO: There's something fishy about this but I'm not sure what... It really doesn't like generating split rooms for some reason but it works... enough...
+        // This is a DEPTH-FIRST algorithm, meaning it is very likely to create a very deep dungeon with minimal branching paths even if branches are very common in the room pool.
+        // Counterintuitively, this can be mitigated(ish) by increasing the likelihood of rolling a termination room in the room pool, so dungeons are more likely to not hit maxRooms.
+        // This isn't ideal, but how do you do a breadth-first generation and still maintian backtracking?
+        // So for now this is like, fine.
         // Only YOU can stop infinite recursion!
         // DungeonsAndIngots.LOGGER.debug("NUMBER OF GENERATED ROOMS IS:");
         // DungeonsAndIngots.LOGGER.debug(Integer.toString(existingRooms.size()));
@@ -120,8 +127,7 @@ public class DungeonGenerator {
             // Otherwise, we use it to generate a new room and add it to the array
             // First we get some information about this jigsaw block. This is done by getting the raw position and rotation data, then offsetting it so it lines up with the current room.
             BlockPos jigsawInThisRoomPosition = jigsawInThisRoom.info().pos().rotate(mostRecentRoom.rotation()).offset(mostRecentRoom.position());
-            Rotation jigsawInThisRoomRotation = getRotationFromOrientation(jigsawInThisRoom.info().state().getValue(JigsawBlock.ORIENTATION));
-            jigsawInThisRoomRotation = getRotationFromAngle(getAngleFromRotation(jigsawInThisRoomRotation) + getAngleFromRotation(mostRecentRoom.rotation()));
+            Rotation jigsawInThisRoomRotation = getRotationFromAngle(getAngleFromRotation(getRotationFromOrientation(jigsawInThisRoom.info().state().getValue(JigsawBlock.ORIENTATION))) + getAngleFromRotation(mostRecentRoom.rotation()));
             // Then we create a list of possible rooms to place
             List<StructurePoolElement> possibleRooms = jigsawInThisRoomTargetPool.getShuffledTemplates(randomSource);
             // DungeonsAndIngots.LOGGER.debug("\tTHIS ROOM HAS A JIGSAW AT POSITION:");
@@ -132,7 +138,7 @@ public class DungeonGenerator {
             // Then we iterate over the list of possible rooms
             boolean foundRoomToPlace = false;
             // Because of a quirk of StructureTemplatePool.getShuffledTemplates, it will often try the same room type multiple times. As an optimization,
-            // We keep track of which room types we've already tried so we can skip them later, greatly reducing generation time (hopefully!)
+            // we keep track of which room types we've already tried so we can skip them later, greatly reducing generation time (kinda)
             HashSet<StructurePoolElement> alreadyCheckedRoomTypes = new HashSet<>();
             for (StructurePoolElement possibleRoom : possibleRooms) {
                 if (!alreadyCheckedRoomTypes.add(possibleRoom)) {
@@ -159,23 +165,31 @@ public class DungeonGenerator {
 
                         // Now we calculate the new room's position and rotation based on the jigsaw block position and rotation
                         Rotation newRoomRotation = calculateRequiredRotation(jigsawInThisRoomRotation, jigsawInTargetRoomRotation);
+                        // DungeonsAndIngots.LOGGER.debug("SOURCE JIGSAW IS " + jigsawInThisRoomRotation.toString() + ", TARGET JIGSAW IS " + jigsawInTargetRoomRotation.toString() + ", CALCULATED ROTATION IS " + newRoomRotation.toString());
                         BlockPos oneBlockForwardOffset = new BlockPos(0, 0, -1).rotate(jigsawInThisRoomRotation);
                         BlockPos newRoomPosition = jigsawInTargetRoomPosition.rotate(newRoomRotation).multiply(-1).offset(jigsawInThisRoomPosition).offset(oneBlockForwardOffset);
                         // DungeonsAndIngots.LOGGER.debug("NEW ROOM WILL BE PLACED AT:");
                         // DungeonsAndIngots.LOGGER.debug(newRoomPosition.toString());
                         // DungeonsAndIngots.LOGGER.debug("WITH ROTATION:");
                         // DungeonsAndIngots.LOGGER.debug(newRoomRotation.toString());
+
                         // Detect if this room overlaps with any other rooms. This prevents self-intersection, dead-ends, etc.
                         DungeonRoomData newRoom = new DungeonRoomData(possibleRoom, newRoomPosition, newRoomRotation);
                         boolean foundOverlap = false;
+                        // int existingRoomNumber = 0; 
                         for (DungeonRoomData existingRoom : existingRooms) {
                             if (this.detectRoomOverlap(existingRoom, newRoom)) {
+                                // DungeonsAndIngots.LOGGER.debug("I AM ROOM " + Integer.toString(roomIndex) + " " + mostRecentRoom.element().toString() + " AND I COULD NOT PLACE " + possibleRoom.toString());
+                                // DungeonsAndIngots.LOGGER.debug("\tBECAUSE IT OVERLAPPED WITH ROOM " + Integer.toString(existingRoomNumber) + " " + existingRoom.element().toString());
+                                // DungeonsAndIngots.LOGGER.debug("\tBTW, THERE ARE " + Integer.toString(existingRooms.size()) + " ROOMS IN THE ARRAY");
                                 foundOverlap = true;
                                 break;
                             }
+                            // existingRoomNumber++;
                         }
+                        // If an overlap is detected, try a different orientation of the target room. Maybe it's a 2x1 room or something, you don't know.
                         if (foundOverlap) {
-                            break;
+                            continue;
                         }
                         // Create new temporary arrays during the generation step in case we have to backtrack from this room
                         ArrayList<DungeonRoomData> hypotheticalFutureDungeonRooms = new ArrayList<>(existingRooms);
@@ -185,7 +199,9 @@ public class DungeonGenerator {
                         if (generateRecursive(newRoom, hypotheticalFutureDungeonRooms, jigsawInTargetRoom, roomIndex + 1)) {
                             // Ensures that we don't start accepting branches until we hit a minimum number of rooms, which guarantees dungeon size and length.
                             if (hypotheticalFutureDungeonRooms.size() < minRooms) {
-                                continue;
+                                // Should always print that the room is "dungeonsandingots:dungeon_1/layer_1/start"
+                                // DungeonsAndIngots.LOGGER.debug(newRoom.toString() + " I AM BREAKING BECAUSE WE DIDN'T HIT MINIMUM ROOM LIMIT~~~~~~~~~");
+                                break;
                             }
                             // DungeonsAndIngots.LOGGER.debug("REACHED THE END OF A BRANCH, NOTE THAT IN YOUR LOG");
                             existingRooms.clear();
@@ -194,6 +210,9 @@ public class DungeonGenerator {
                             break;
                         }
                     }
+                }
+                if (foundRoomToPlace) {
+                    break;
                 }
             }
             // This means "I tried every possible room, and none of them found a valid placement, so clearly this path is a dead end and a problem!"
@@ -260,15 +279,18 @@ public class DungeonGenerator {
     }
 
     private static Rotation getRotationFromAngle(int angle) {
-        int modAngle = angle % 360;
+        int modAngle = ((angle % 360 + 360) % 360); // have to do this because java mod operator is stupid and bad
         if (modAngle == 0) {
             return Rotation.NONE;
         } else if (modAngle == 90) {
             return Rotation.CLOCKWISE_90;
         } else if (modAngle == 180) {
             return Rotation.CLOCKWISE_180;
-        } else {
+        } else if (modAngle == 270) {
             return Rotation.COUNTERCLOCKWISE_90;
+        } else {
+            DungeonsAndIngots.LOGGER.error("Invalid argument for getRotationFromAngle. You can only pass multiples of 90 but you passed " + Integer.toString(angle) + " which was interpreted as " + Integer.toString(modAngle));
+            return Rotation.NONE;
         }
     }
 

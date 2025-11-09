@@ -23,7 +23,7 @@ import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
 public class DungeonManager {
 
     private static final int DUNGEON_1_MIN_ROOMS = 10;
-    private static final int DUNGEON_1_MAX_ROOMS = 15;
+    private static final int DUNGEON_1_MAX_ROOMS = 25;
 
     public static void generateAndSendPlayerToDungeon(Player player, String dungeonName) {
         ResourceLocation resourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, dungeonName);
@@ -65,9 +65,9 @@ public class DungeonManager {
     }
 
     private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
-        DungeonGenerator rooms = new DungeonGenerator(targetLevel, startPool, regularPool, exactlyOnePool, minRooms, maxRooms);
-        rooms.generate();
-        rooms.place();
+        DungeonGenerator dungeonGenerator = new DungeonGenerator(targetLevel, startPool, regularPool, exactlyOnePool, minRooms, maxRooms);
+        dungeonGenerator.generate();
+        dungeonGenerator.place();
     }
 
     private static void deleteDungeon(ServerLevel level, BlockPos center, int xzDistance, int yDistance) {
