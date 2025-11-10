@@ -6,7 +6,7 @@
             "weight": 1,
             "element": {
                 "element_type": "minecraft:single_pool_element",
-                "location": "dungeonsandingots:dungeon_1/layer_1/end",
+                "location": "dungeonsandingots:dungeon_1/layer_1/straight_save_point_1",
                 "processors": {
                     "processors": []
                 },

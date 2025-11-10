@@ -43,29 +43,30 @@ public class DungeonManager {
             deleteDungeon(targetLevel, new BlockPos(0, 17, 0), 200, 17);
             // Time to generate the dungeon. First we get references to the TemplatePool objects.
             Registry<StructureTemplatePool> templateRegistry = targetLevel.registryAccess().lookupOrThrow(Registries.TEMPLATE_POOL);
-            // This pool is for possible starting rooms
+            // This pool is for possible starting rooms.
             ResourceLocation startPoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/start");
             ResourceKey<StructureTemplatePool> startPoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, startPoolResourceLocation);
             StructureTemplatePool startPool = templateRegistry.getOrThrow(startPoolResourceKey).value();
-            // This pool is for regular rooms
+            // This pool is for regular rooms.
             ResourceLocation regularPoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/all");
             ResourceKey<StructureTemplatePool> regularPoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, regularPoolResourceLocation);
             StructureTemplatePool regularPool = templateRegistry.getOrThrow(regularPoolResourceKey).value();
-            // This pool is for rooms that must only appear once, like ending rooms
+            // This pool is for rooms that must only appear once, like ending rooms.
             ResourceLocation exactlyOnePoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/end");
             ResourceKey<StructureTemplatePool> exactlyOnePoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, exactlyOnePoolResourceLocation);
             StructureTemplatePool exactlyOnePool = templateRegistry.getOrThrow(exactlyOnePoolResourceKey).value();
-
+            // This pool is for rooms that must appear at least once but can appear multiple times, like checkpoint rooms.
+            ResourceLocation oneOrMorePoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/one_or_more");
+            ResourceKey<StructureTemplatePool> oneOrMorePoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, oneOrMorePoolResourceLocation);
+            StructureTemplatePool oneOrMorePool = templateRegistry.getOrThrow(oneOrMorePoolResourceKey).value();
             // Actually generates the jigsaw
-            // JigsawPlacement.generateJigsaw(targetLevel, poolHolder, targetName, DUNGEON_1_MAX_DEPTH, generationPos, false);
-            // SinglePoolElement
-            generateDungeon(targetLevel, startPool, regularPool, exactlyOnePool, DUNGEON_1_MIN_ROOMS, DUNGEON_1_MAX_ROOMS);
+            generateDungeon(targetLevel, startPool, regularPool, oneOrMorePool, exactlyOnePool, DUNGEON_1_MIN_ROOMS, DUNGEON_1_MAX_ROOMS);
             // Once this finishes, the CPU is freed up, the teleport finishes, and the "Generating Terrain..." screen disappears.
         }
     }
 
-    private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
-        DungeonGenerator dungeonGenerator = new DungeonGenerator(targetLevel, startPool, regularPool, exactlyOnePool, minRooms, maxRooms);
+    private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool oneOrMoreTemplatePool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
+        DungeonGenerator dungeonGenerator = new DungeonGenerator(targetLevel, startPool, regularPool, oneOrMoreTemplatePool, exactlyOnePool, minRooms, maxRooms);
         dungeonGenerator.generate();
         dungeonGenerator.place();
     }
