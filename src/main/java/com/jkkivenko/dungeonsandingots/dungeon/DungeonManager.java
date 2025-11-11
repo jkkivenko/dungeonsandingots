@@ -2,9 +2,11 @@ package com.jkkivenko.dungeonsandingots.dungeon;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
+import com.jkkivenko.dungeonsandingots.DungeonsAndIngotsSavedData;
 import com.jkkivenko.dungeonsandingots.dungeon.generator.DungeonGenerator;
-import net.minecraft.commands.arguments.blocks.BlockInput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
@@ -15,8 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
 
 @SuppressWarnings("null")
@@ -37,11 +38,10 @@ public class DungeonManager {
             ServerLevel targetLevel = minecraftServer.getLevel(resourceKey);
             // Sends the player to the dungeon. We do this early to display the "Generating Terrain..." screen while the dungeon generates.
             sendPlayerToDungeon(player, 0, 8, 0, targetLevel);
-            // Clears out the old dungeon. Realistically, this should scan somehow for the outside of the structure.
-            // Instead, we just clear a 200-wide area around (0,0)
-            // TODO: Fix deleting the dungeon. Why does it do nothing????
-            deleteDungeon(targetLevel, new BlockPos(0, 17, 0), 200, 17);
-            // Time to generate the dungeon. First we get references to the TemplatePool objects.
+            // Delete the old dungeon by iterating through its bounding boxes.
+            DungeonsAndIngotsSavedData dnisd = targetLevel.getDataStorage().computeIfAbsent(DungeonsAndIngotsSavedData.ID);
+            deleteDungeon(targetLevel, dnisd.getBoundingBoxes());
+            // Now it's time to generate the dungeon. First we get references to the TemplatePool objects.
             Registry<StructureTemplatePool> templateRegistry = targetLevel.registryAccess().lookupOrThrow(Registries.TEMPLATE_POOL);
             // This pool is for possible starting rooms.
             ResourceLocation startPoolResourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, "dungeon_1/layer_1/start");
@@ -60,28 +60,30 @@ public class DungeonManager {
             ResourceKey<StructureTemplatePool> oneOrMorePoolResourceKey = ResourceKey.create(Registries.TEMPLATE_POOL, oneOrMorePoolResourceLocation);
             StructureTemplatePool oneOrMorePool = templateRegistry.getOrThrow(oneOrMorePoolResourceKey).value();
             // Actually generates the jigsaw
-            generateDungeon(targetLevel, startPool, regularPool, oneOrMorePool, exactlyOnePool, DUNGEON_1_MIN_ROOMS, DUNGEON_1_MAX_ROOMS);
+            List<BoundingBox> boundingBoxes = generateDungeon(targetLevel, startPool, regularPool, oneOrMorePool, exactlyOnePool, DUNGEON_1_MIN_ROOMS, DUNGEON_1_MAX_ROOMS);
+            dnisd.setBoundingBoxes(boundingBoxes);
             // Once this finishes, the CPU is freed up, the teleport finishes, and the "Generating Terrain..." screen disappears.
         }
     }
 
-    private static void generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool oneOrMoreTemplatePool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
+    private static List<BoundingBox> generateDungeon(ServerLevel targetLevel, StructureTemplatePool startPool, StructureTemplatePool regularPool, StructureTemplatePool oneOrMoreTemplatePool, StructureTemplatePool exactlyOnePool, int minRooms, int maxRooms) {
         DungeonGenerator dungeonGenerator = new DungeonGenerator(targetLevel, startPool, regularPool, oneOrMoreTemplatePool, exactlyOnePool, minRooms, maxRooms);
         dungeonGenerator.generate();
         dungeonGenerator.place();
+        return dungeonGenerator.getRoomBoundingBoxes();
     }
 
-    private static void deleteDungeon(ServerLevel level, BlockPos center, int xzDistance, int yDistance) {
-        // Create an iterator to iterate over all blocks in the area
-        Iterator<BlockPos> blockIterator = BlockPos.withinManhattan(center, xzDistance, xzDistance, yDistance).iterator();
-        // Creating a BlockState object is like impossible, so instead just copy the BlockState of a known block of air. This is stupid.
-        BlockState airBlockState = level.getBlockState(new BlockPos(-10, -10, -10));
-        // Creates a new BlockInput that represents a block of air with no properties...?
-        BlockInput airBlockInput = new BlockInput(airBlockState, new HashSet<Property<?>>(), null);
-        // Iterate over every block and replace them with the air block
-        while(blockIterator.hasNext()) {
-            BlockPos blockPos = blockIterator.next();
-            airBlockInput.place(level, blockPos, 258); // what is 258? nobody knows!
+    private static void deleteDungeon(ServerLevel level, List<BoundingBox> boundingBoxes) {
+        if (boundingBoxes != null) {
+            for (BoundingBox bBox : boundingBoxes) {
+                Iterator<BlockPos> iterator = BlockPos.betweenClosed(bBox.minX(), bBox.minY(), bBox.minZ(), bBox.maxX(), bBox.maxY(), bBox.maxZ()).iterator();
+                while(iterator.hasNext()) {
+                    BlockPos blockPos = iterator.next();
+                    level.removeBlock(blockPos, false); //??
+                }
+            }
+        } else {
+            DungeonsAndIngots.LOGGER.debug("Dungeon does not exist yet, so nothing was deleted.");
         }
     }
 

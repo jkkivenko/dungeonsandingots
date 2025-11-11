@@ -50,6 +50,14 @@ public class DungeonGenerator {
         return rooms;
     }
 
+    public List<BoundingBox> getRoomBoundingBoxes() {
+        ArrayList<BoundingBox> boundingBoxes = new ArrayList<>();
+        for (DungeonRoomData room : rooms) {
+            boundingBoxes.add(room.element().getBoundingBox(templateManager, room.position(), room.rotation()));
+        }
+        return boundingBoxes;
+    }
+
     public DungeonGenerator(ServerLevel level, StructureTemplatePool startTemplatePool, StructureTemplatePool regularTemplatePool, StructureTemplatePool oneOrMoreTemplatePool, StructureTemplatePool exactlyOneTemplatePool, int minRooms, int maxRooms) {
         this.startTemplatePool = startTemplatePool;
         this.regularTemplatePool = regularTemplatePool;
