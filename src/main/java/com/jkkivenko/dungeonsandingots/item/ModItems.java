@@ -3,8 +3,11 @@ package com.jkkivenko.dungeonsandingots.item;
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
 import com.jkkivenko.dungeonsandingots.block.ModBlocks;
 
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ToolMaterial;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredRegister.Items;
@@ -14,39 +17,33 @@ public class ModItems {
     // Create a Deferred Register to hold Items which will all be registered under the "dungeonsandingots" namespace
     public static final Items ITEMS = DeferredRegister.createItems(DungeonsAndIngots.MOD_ID);
 
-    // Creates a new BlockItem with the id "dungeonsandingots:example_block", combining the namespace and path
-    public static final DeferredItem<BlockItem> DUNGEON_PORTAL_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("dungeon_portal_block", ModBlocks.DUNGEON_PORTAL_BLOCK);
+    // Make a couple of different tool types for use later.
+    public static final ToolMaterial BONE = new ToolMaterial(BlockTags.INCORRECT_FOR_DIAMOND_TOOL, 1000, 2.0f, 0.0f, 1, ItemTags.DIAMOND_TOOL_MATERIALS);
+    public static final ToolMaterial RUSTY = new ToolMaterial(BlockTags.INCORRECT_FOR_DIAMOND_TOOL, 1000, 3.0f, 0.0f, 1, ItemTags.DIAMOND_TOOL_MATERIALS);
 
+    // Block items
+    public static final DeferredItem<BlockItem> DUNGEON_PORTAL_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_PORTAL_BLOCK);
+    public static final DeferredItem<BlockItem> RITUAL_STONE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.RITUAL_STONE_BLOCK);
+
+    // Non-block items
     public static final DeferredItem<Item> DUNGEON_KEY_1 = ITEMS.registerSimpleItem("dungeon_key_1");
+    public static final DeferredItem<Item> SERRATED_BLADE = ITEMS.registerSimpleItem(
+        "serrated_blade",
+        (props) -> props
+        .sword(BONE, 6.0f, -2.4f)
+    );
+    public static final DeferredItem<Item> RUSTY_SWORD = ITEMS.registerSimpleItem(
+        "rusty_sword",
+        (props) -> props
+        .sword(RUSTY, 5.0f, -2.4f)
+    );
+    public static final DeferredItem<Item> RUSTY_AXE = ITEMS.registerSimpleItem(
+        "rusty_axe",
+        (props) -> props
+        .axe(RUSTY, 6.5f, -3.1f)
+    );
 }
 
 /*
- * Dungeon Key 1
- * Wolf Pelt
- * Wolf Tooth
- * Rusty Sword
- * Rusty Arrow
- * Tooth Arrow
- * Hide Cap
- * Hide Tunic
- * Hide Pants
- * Hide Boots
- * Serrated Blade
- * Wild Spellbook
- * Ectoplasm
- * Haunted Cloth
- * Bone Shard
- * Undead Blade
- * Haunted Robes
- * Drew's Trident (or maybe just make this a regular trident with enchantments)
- * Haunted Headscarf
- * Haunted Spellbook
- * Chipped Axe
- * Haunted Crosbow (or maybe just make this a regular crossbow with enchantments)
- * Femur
- * Bone Club
- * Rotten Heart
- * Decaying Energy
- * Spine Whip
  * 
  */

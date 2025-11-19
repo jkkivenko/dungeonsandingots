@@ -39,8 +39,12 @@ public class DungeonsAndIngots {
         .title(Component.translatable("creativetab.dungeonsandingots"))
         .displayItems((itemDisplayParameters, output) -> {
             output.accept(ModItems.DUNGEON_PORTAL_BLOCK_ITEM);
+            output.accept(ModItems.RITUAL_STONE_BLOCK_ITEM);
             output.accept(ModItems.DUNGEON_KEY_1);
-
+            output.accept(ModItems.SERRATED_BLADE);
+            output.accept(ModItems.RUSTY_SWORD);
+            output.accept(ModItems.RUSTY_AXE);
+            // TODO: Figure out how to automate this step
         })
         .build()
     );
