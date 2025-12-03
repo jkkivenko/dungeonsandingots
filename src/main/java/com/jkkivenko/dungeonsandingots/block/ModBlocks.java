@@ -23,5 +23,11 @@ public class ModBlocks {
         .destroyTime(2.0f)
         .requiresCorrectToolForDrops()
     );
+
+    public static final DeferredBlock<Block> DUNGEON_BRICK_BLOCK = BLOCKS.registerSimpleBlock(
+        "dungeon_brick_block",
+        (props) -> props
+        .destroyTime(-1)
+    );
     
 }

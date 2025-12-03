@@ -24,9 +24,11 @@ public class ModItems {
     // Block items
     public static final DeferredItem<BlockItem> DUNGEON_PORTAL_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_PORTAL_BLOCK);
     public static final DeferredItem<BlockItem> RITUAL_STONE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.RITUAL_STONE_BLOCK);
+    public static final DeferredItem<BlockItem> DUNGEON_BRICK_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.DUNGEON_BRICK_BLOCK);
 
     // Non-block items
     public static final DeferredItem<Item> DUNGEON_KEY_1 = ITEMS.registerSimpleItem("dungeon_key_1");
+    public static final DeferredItem<Item> WOLF_PELT = ITEMS.registerSimpleItem("wolf_pelt");
     public static final DeferredItem<Item> SERRATED_BLADE = ITEMS.registerSimpleItem(
         "serrated_blade",
         (props) -> props

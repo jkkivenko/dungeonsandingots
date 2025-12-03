@@ -1,0 +1,5 @@
+{
+    "variants": {
+        "": { "model": "dungeonsandingots:block/BLOCK_NAME" }
+    }
+}

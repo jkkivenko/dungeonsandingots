@@ -45,7 +45,8 @@ public class DungeonsAndIngots {
             output.accept(ModItems.SERRATED_BLADE);
             output.accept(ModItems.RUSTY_SWORD);
             output.accept(ModItems.RUSTY_AXE);
-            // TODO: Figure out how to automate this step
+            output.accept(ModItems.WOLF_PELT);
+            output.accept(ModItems.DUNGEON_BRICK_BLOCK_ITEM);
         })
         .build()
     );
