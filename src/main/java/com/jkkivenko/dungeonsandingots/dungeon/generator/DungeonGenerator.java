@@ -50,14 +50,17 @@ public class DungeonGenerator {
         return rooms;
     }
 
-    public List<BoundingBox> getRoomBoundingBoxes() {
-        ArrayList<BoundingBox> boundingBoxes = new ArrayList<>();
-        for (DungeonRoomData room : rooms) {
-            boundingBoxes.add(room.element().getBoundingBox(templateManager, room.position(), room.rotation()));
-        }
-        return boundingBoxes;
-    }
-
+    /**
+     * Create a new DungeonGenerator.
+     * 
+     * @param level The ServerLevel for the dimension in which the dungeon will be generated.
+     * @param startTemplatePool A StructureTemplatePool. One of these rooms will be used to for the initial room in the dungeon, and the rest will not generate.
+     * @param regularTemplatePool A StructureTemplatePool. Rooms in this pool are considered "regular" and may be replaced by special rooms specified in oneOrMoreTemplatePool or exactlyOneTemplatePool.
+     * @param oneOrMoreTemplatePool A StructureTemplatePool. Rooms in this pool will occasionally replace "regular" rooms, and at least one of each room specified is guaranteed to spawn.
+     * @param exactlyOneTemplatePool A StructureTemplatePool. Rooms in this pool will occasionally replace "regular" rooms, and exactly one of each room specified is guaranteed to spawn.
+     * @param minRooms The minimum number of rooms the dungeon will generate.
+     * @param maxRooms The maximum number of rooms the dungeon will generate.
+     */
     public DungeonGenerator(ServerLevel level, StructureTemplatePool startTemplatePool, StructureTemplatePool regularTemplatePool, StructureTemplatePool oneOrMoreTemplatePool, StructureTemplatePool exactlyOneTemplatePool, int minRooms, int maxRooms) {
         this.startTemplatePool = startTemplatePool;
         this.regularTemplatePool = regularTemplatePool;
@@ -71,6 +74,15 @@ public class DungeonGenerator {
         this.templateRegistry = level.registryAccess().lookupOrThrow(Registries.TEMPLATE_POOL);
 
     }
+
+    public List<BoundingBox> getRoomBoundingBoxes() {
+        ArrayList<BoundingBox> boundingBoxes = new ArrayList<>();
+        for (DungeonRoomData room : rooms) {
+            boundingBoxes.add(room.element().getBoundingBox(templateManager, room.position(), room.rotation()));
+        }
+        return boundingBoxes;
+    }
+
 
     // Builds a hypothetical dungeon !
     public void generate() {
@@ -90,9 +102,6 @@ public class DungeonGenerator {
             // Serious jank incoming
             // Just revoke my degree at this point...
             // I'm using toString to access a protected field because I'm a monster and I hate good code
-            // I'm sorry you had to see this, dear reader.
-            // Please forgive me...
-            // I have brought great shame upon my family
             String structureName = roomData.element().toString().replace("Single[Left[" + DungeonsAndIngots.MOD_ID + ":", "").replace("]]", "");
             ResourceLocation resourceLocation = ResourceLocation.fromNamespaceAndPath(DungeonsAndIngots.MOD_ID, structureName);
             StructureTemplate structureTemplate = templateManager.get(resourceLocation).get();
@@ -102,7 +111,7 @@ public class DungeonGenerator {
     }
 
     private boolean generateRecursive(DungeonRoomData mostRecentRoom, ArrayList<DungeonRoomData> existingRooms, JigsawBlockInfo alreadyUsedJigsaw, int roomIndex) {
-        // This is a DEPTH-FIRST algorithm, meaning it is very likely to create a very deep dungeon with minimal branching paths even if branches are very common in the room pool.
+        // This is a DEPTH-FIRST algorithm, meaning it is likely to create a very deep dungeon with minimal branching paths even if branches are very common in the room pool.
         // Counterintuitively, this can be mitigated(ish) by increasing the likelihood of generating a termination room using the room pool,
         // so dungeons are more likely to terminate because of a dead-end, not because they hit maxRooms.
         if (existingRooms.size() > maxRooms) {
@@ -113,26 +122,40 @@ public class DungeonGenerator {
         for (JigsawBlockInfo jigsawInThisRoom : jigsawsInThisRoom) {
             // This is the pool that the jigsaw block in question is trying to pull from
             StructureTemplatePool jigsawInThisRoomTargetPool = templateRegistry.getOrThrow(jigsawInThisRoom.pool()).value();
-            // If the jigsaw block has already been used or it's a mob-spawning jigsaw, just ignore it.
+            // If the jigsaw block has already been used, just ignore it.
             if (jigsawEquals(alreadyUsedJigsaw, jigsawInThisRoom)) {
                 continue;
             }
-            if (jigsawInThisRoomTargetPool != regularTemplatePool) {
+            // If the jigsaw block has a pool with no elements (or an empty or misspelled pool name, which results in a pool with no elements)
+            if (jigsawInThisRoomTargetPool.size() == 0) {
                 continue;
             }
+            // Also ignore it if it's a mob- or treasure-spawning jigsaw.
+            // We detect this by checking its bounding-box. If it's more than 4x4x4, it's a real room.
+            // We only test one of its possible bounding boxes, which is fine. Trust me.
+            StructurePoolElement elem = jigsawInThisRoomTargetPool.getRandomTemplate(randomSource);
+            BoundingBox bbox = elem.getBoundingBox(templateManager, BlockPos.ZERO, Rotation.NONE);
+            if (bbox.getXSpan() * bbox.getYSpan() * bbox.getZSpan() < 64) {
+                continue;
+            }
+
             // Otherwise, we use it to generate a new room and add it to the array
             // First we get some information about this jigsaw block. This is done by getting the raw position and rotation data, then offsetting it so it lines up with the current room.
             BlockPos jigsawInThisRoomPosition = jigsawInThisRoom.info().pos().rotate(mostRecentRoom.rotation()).offset(mostRecentRoom.position());
             Rotation jigsawInThisRoomRotation = getRotationFromAngle(getAngleFromRotation(getRotationFromOrientation(jigsawInThisRoom.info().state().getValue(JigsawBlock.ORIENTATION))) + getAngleFromRotation(mostRecentRoom.rotation()));
-            // Then we create a list of possible rooms to place
-            StructureTemplatePool combinedPool = structureTemplatePoolUnion(jigsawInThisRoomTargetPool, getRemainingSpecialRooms(existingRooms));
+            // Then we create a list of possible rooms to place. If we're trying to place a "regular" room, then we allow it to be replaced by special rooms.
+            StructureTemplatePool combinedPool = jigsawInThisRoomTargetPool;
+            if (jigsawInThisRoomTargetPool == regularTemplatePool){
+                combinedPool = structureTemplatePoolUnion(jigsawInThisRoomTargetPool, getRemainingSpecialRooms(existingRooms));
+            }
             List<StructurePoolElement> possibleRooms = combinedPool.getShuffledTemplates(randomSource);
-            // Then we iterate over the list of possible rooms
+            // Set up some variables !
             boolean foundRoomToPlace = false;
-            // Because of a quirk of StructureTemplatePool.getShuffledTemplates, it will often try the same room type multiple times. As an optimization,
-            // we keep track of which room types we've already tried so we can skip them later, greatly reducing generation time (kinda)
             HashSet<StructurePoolElement> alreadyCheckedRoomTypes = new HashSet<>();
+            // Then we iterate over the list of possible rooms
             for (StructurePoolElement possibleRoom : possibleRooms) {
+                // Because of how StructureTemplatePool.getShuffledTemplates works, it will often try the same room type multiple times. As an optimization,
+                // we keep track of which room types we've already tried so we can skip them later, greatly reducing generation time (maybe)
                 if (!alreadyCheckedRoomTypes.add(possibleRoom)) {
                     continue;
                 }
@@ -241,7 +264,7 @@ public class DungeonGenerator {
         // All oneOrMore rooms are allowed to be placed, so just copy it over.
         ArrayList<Pair<StructurePoolElement, Integer>> roomsThatMayBePlaced = new ArrayList<>(oneOrMoreTemplatePool.getTemplates());
         // It's a little more complicated for exactlyOne rooms.
-        // If it is present in the set of rooms that *must* be placed, it should be added to the pool. Otherwise, it has already been placed so it *may* not be placed again.
+        // If it is present in the set of rooms that *must* be placed, it should be added to the pool. Otherwise, it has already been placed so it *may not* be placed again.
         for (Pair<StructurePoolElement, Integer> exactlyOneEntry : exactlyOneTemplatePool.getTemplates()) {
             if (roomsThatMustBePlaced.contains(exactlyOneEntry.getFirst())) {
                 roomsThatMayBePlaced.add(exactlyOneEntry);
