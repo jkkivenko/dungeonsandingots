@@ -3,9 +3,11 @@ package com.jkkivenko.dungeonsandingots.block;
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
 
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+@SuppressWarnings("null")
 public class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(DungeonsAndIngots.MOD_ID);
 
@@ -28,6 +30,7 @@ public class ModBlocks {
         "dungeon_brick_block",
         (props) -> props
         .destroyTime(-1)
+        .sound(SoundType.DEEPSLATE_BRICKS)
     );
     
 }
