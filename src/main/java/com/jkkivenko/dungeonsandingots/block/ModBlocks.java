@@ -1,7 +1,6 @@
 package com.jkkivenko.dungeonsandingots.block;
 
 import com.jkkivenko.dungeonsandingots.DungeonsAndIngots;
-
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.neoforged.neoforge.registries.DeferredBlock;

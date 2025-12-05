@@ -11,7 +11,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
 @SuppressWarnings("null")
-public class DungeonsAndIngotsSavedData extends SavedData {
+public class DungeonData extends SavedData {
 
     private String boundingBoxesStringified;
     private String nothingIdk = ""; // UNUSED. I'm sorry I couldn't find out how to store only one string... I am maybe stupid
@@ -35,29 +35,29 @@ public class DungeonsAndIngotsSavedData extends SavedData {
     }
 
 
-    public DungeonsAndIngotsSavedData() {
+    public DungeonData() {
         // Intentionally empty. Probably.
     }
     
-    public DungeonsAndIngotsSavedData(List<BoundingBox> boundingBoxes) {
+    public DungeonData(List<BoundingBox> boundingBoxes) {
         this.boundingBoxesStringified = stringifyList(boundingBoxes);
     }
 
-    public DungeonsAndIngotsSavedData(String boundingBoxesStringified, String nothingIdk) {
+    public DungeonData(String boundingBoxesStringified, String nothingIdk) {
         this.boundingBoxesStringified = boundingBoxesStringified;
     }
 
-    public static final SavedDataType<DungeonsAndIngotsSavedData> ID = new SavedDataType<>(
+    public static final SavedDataType<DungeonData> ID = new SavedDataType<>(
         // The identifier of the saved data
         // Used as the path within the level's `data` folder
         "dungeon_saved_data",
         // The initial constructor
-        DungeonsAndIngotsSavedData::new,
+        DungeonData::new,
         // The codec used to serialize the data
         RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("boundingBoxesStringified").forGetter(sd -> sd.boundingBoxesStringified),
             Codec.STRING.fieldOf("nothingIdk").forGetter(sd -> sd.nothingIdk)
-        ).apply(instance, DungeonsAndIngotsSavedData::new))
+        ).apply(instance, DungeonData::new))
 
     );
 

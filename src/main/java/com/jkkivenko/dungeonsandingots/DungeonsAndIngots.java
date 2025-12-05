@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 
 import com.jkkivenko.dungeonsandingots.block.ModBlocks;
+import com.jkkivenko.dungeonsandingots.blockentity.ModBlockEntities;
 import com.jkkivenko.dungeonsandingots.item.ModItems;
 import com.jkkivenko.dungeonsandingots.loot.ModLootModifiers;
 import com.mojang.logging.LogUtils;
@@ -65,6 +66,9 @@ public class DungeonsAndIngots {
         ModItems.ITEMS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so changes to loot tables get registered
         ModLootModifiers.GLOBAL_LOOT_MODIFIER_SERIALIZERS.register(modEventBus);
+        // Register the Deferred Register to the mod event bus so block entities get registered
+        ModBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
+        
 
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want *this* class (DungeonsandIngots) to respond directly to events.
